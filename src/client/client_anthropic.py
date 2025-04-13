@@ -43,16 +43,14 @@ class MCPClient:
 
         await self.session.initialize()
 
-        # List available tools
-        response = await self.session.list_tools()
-        tools = response.tools
-        print("\nConnected to server with tools:", [tool.name for tool in tools])
-
     async def process_query(self, query: str) -> str:
         """Process a query using Claude and available tools"""
         messages = [{"role": "user", "content": query}]
 
         response = await self.session.list_tools()
+        print(
+            "\nConnected to server with tools:", [tool.name for tool in response.tools]
+        )
         available_tools = [
             {
                 "name": tool.name,

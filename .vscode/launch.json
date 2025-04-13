@@ -5,12 +5,12 @@
       "name": "api",
       "type": "debugpy",
       "request": "launch",
-      "program": "client_geni.py",
+      "program": "src/client/client_geni.py",
       "args": [
         "--directory",
-        ".",
+        "./src/server",
         "run",
-        "server2.py"
+        "wheather_mcp_server.py"
       ],
       "console": "integratedTerminal",
       "justMyCode": false

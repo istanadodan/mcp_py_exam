@@ -1,5 +1,4 @@
 import asyncio
-import os
 from contextlib import AsyncExitStack
 from typing import Optional
 from google import genai
@@ -21,6 +20,7 @@ class MCPClient:
         self.server_script_path = server_script_path
         # model
         self.client = genai.Client()
+        self.tools = []
         print(self.server_script_path)
 
     # methods will go here
@@ -49,35 +49,47 @@ class MCPClient:
         await self.session.initialize()
         print(f"session get")
 
+        self.create_tool_list()
+
+    # MCP 서버로부터 사용 가능한 도구 목록을 가져와 Google AI 형식으로 변환합니다.
+    async def create_tool_list(self):
+        """List available tools"""
+        # MCP 세션을 통해 서버의 도구 목록을 비동기적으로 요청합니다.
+        mcp_tools = await self.session.list_tools()
+        print(f"list_tools: {mcp_tools}")  # 가져온 도구 목록 로깅 (디버깅용)
+
+        # 가져온 MCP 도구 목록을 Google AI SDK가 요구하는 types.Tool 형식으로 변환합니다.
+        self.tools = [
+            types.Tool(
+                function_declarations=[  # 각 도구에 대한 함수 선언 목록
+                    {
+                        "name": tool.name,  # 도구 이름
+                        "description": tool.description,  # 도구 설명
+                        "parameters": {  # 도구 입력 파라미터 스키마
+                            k: v
+                            for k, v in tool.inputSchema.items()
+                            # 불필요한 스키마 속성('additionalProperties', '$schema') 제외
+                            if k not in ["additionalProperties", "$schema"]
+                        },
+                    },
+                ]
+            )
+            # mcp_tools 응답 내의 각 도구에 대해 반복 처리
+            for tool in mcp_tools.tools
+        ]
+
+    # 쿼리와 도구 목록을 모델에 전달하여 응답 생성
     async def process_query(self, prompt: str) -> types.GenerateContentResponse:
         """
         Args:
             prompt: Prompt to send to the server
         """
         print(f"mcp_tools start: {prompt}")
-        mcp_tools = await self.session.list_tools()
-        print(f"mcp_tools: len{mcp_tools}")
-        tools = [
-            types.Tool(
-                function_declarations=[
-                    {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "parameters": {
-                            k: v
-                            for k, v in tool.inputSchema.items()
-                            if k not in ["additionalProperties", "$schema"]
-                        },
-                    },
-                ]
-            )
-            for tool in mcp_tools.tools
-        ]
 
         response: types.GenerateContentResponse = self.client.models.generate_content(
             model="gemini-2.5-pro-exp-03-25",
             contents=prompt,
-            config=types.GenerateContentConfig(temperature=0, tools=tools),
+            config=types.GenerateContentConfig(temperature=0, tools=self.tools),
         )
 
         return response
