@@ -49,17 +49,17 @@ class MCPClient:
         await self.session.initialize()
         print(f"session get")
 
-        self.create_tool_list()
+        self.tools = await self._create_tool_list()
 
     # MCP 서버로부터 사용 가능한 도구 목록을 가져와 Google AI 형식으로 변환합니다.
-    async def create_tool_list(self):
+    async def _create_tool_list(self):
         """List available tools"""
         # MCP 세션을 통해 서버의 도구 목록을 비동기적으로 요청합니다.
         mcp_tools = await self.session.list_tools()
         print(f"list_tools: {mcp_tools}")  # 가져온 도구 목록 로깅 (디버깅용)
 
         # 가져온 MCP 도구 목록을 Google AI SDK가 요구하는 types.Tool 형식으로 변환합니다.
-        self.tools = [
+        return [
             types.Tool(
                 function_declarations=[  # 각 도구에 대한 함수 선언 목록
                     {
@@ -106,9 +106,25 @@ class MCPClient:
                 if query.lower() == "quit":
                     break
 
+                answer3 = ""
                 response = await self.process_query(query)
+                answer1 = response.text
+                if response.function_calls:
+                    answer2 = []
+                    for fc in response.function_calls:
+                        func_answer = await self.session.call_tool(
+                            name=fc.name, arguments=fc.args
+                        )
+                        answer2.append(
+                            "\n--\n".join([t.text for t in func_answer.content])
+                        )
 
-                self.print_candidates(response.candidates)
+                    answer1 += "\n--\n".join(answer2)
+                    answer3 = await self.process_query(answer1)
+
+                print(answer3.candidates[0].content.parts[0].text)
+
+                # self.print_candidates(response.candidates)
 
             except Exception as e:
                 print(f"\nError: {str(e)}")
@@ -124,6 +140,8 @@ class MCPClient:
             for part in candidate.content.parts:
                 if part.text:
                     print(part.text.strip())
+                elif part.function_call.name:
+                    print(f"{part.function_call.name}({part.function_call.args})")
 
     async def cleanup(self):
         """Clean up resources"""
