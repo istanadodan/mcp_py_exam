@@ -11,6 +11,17 @@ mcp = FastMCP("weather")
 NWS_API_BASE = "https://api.weather.gov"
 USER_AGENT = "weather-app/1.0"
 
+
+@mcp.resource("knowledge://profile/{username}")
+def get_user_profile(username: str) -> dict:
+    """사용자 프로필 조회 (가상 데이터베이스 대체)"""
+    profiles = {
+        "alice": {"age": 25, "role": "developer"},
+        "bob": {"age": 30, "role": "designer"},
+    }
+    return profiles.get(username, {"error": "User not found"})
+
+
 # 로깅 설정
 logging.basicConfig(
     level=logging.DEBUG,

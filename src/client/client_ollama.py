@@ -1,9 +1,9 @@
 import asyncio
 from contextlib import AsyncExitStack
 from typing import Optional
-from google import genai
-from google.genai import types
-from google.genai.types import Candidate
+from ollama import ChatResponse, Client
+from langchain_openai import ChatOpenAI
+from langchain.tools.mcp
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from dotenv import load_dotenv
@@ -19,7 +19,9 @@ class MCPClient:
         self.exit_stack = AsyncExitStack()
         self.server_script_path = server_script_path
         # model
-        self.client = genai.Client()
+        self.client = ChatOpenAI(
+            base_url="http://localhost:11434/v1", api_key="lm-studio"
+        )
         self.tools = []
         print(self.server_script_path)
 
@@ -48,8 +50,6 @@ class MCPClient:
         )
         await self.session.initialize()
         print(f"session get")
-
-        self.tools = await self._create_tool_list()
 
     # MCP 서버로부터 사용 가능한 도구 목록을 가져와 Google AI 형식으로 변환합니다.
     async def _create_tool_list(self):
@@ -98,6 +98,8 @@ class MCPClient:
         print("\nMCP Client Started!")
         print("Type your queries or 'quit' to exit.")
 
+        self.tools = await self._create_tool_list()
+
         while True:
             try:
                 query = input("\nQuery: ").strip()
@@ -117,6 +119,29 @@ class MCPClient:
 
                 profiles = await self.session.read_resource("knowledge://profile/alice")
                 print(f"content: {profiles.contents[0].text}")
+                # # response
+                # answer1 = response.text
+
+                # if response.function_calls:
+                #     message = {"role": "user", "message": [{"text": query}]}
+                #     history.append(message)
+
+                #     answer2 = []
+                #     for fc in response.function_calls:
+                #         func_answer = await self.session.call_tool(
+                #             name=fc.name, arguments=fc.args
+                #         )
+                #         answer2 += [t.text for t in func_answer.content]
+
+                #     answer1 += "\n--\n".join(answer2)
+                #     message = {"role": "function", "message": [{"text": answer1}]}
+                #     history.append(message)
+
+                #     answer3 = await self.process_query("\n".join(history))
+
+                #     self.print_candidates(answer3.candidates)
+                # else:
+                #     self.print_candidates(response.candidates)
 
             except Exception as e:
                 print(f"\nError: {str(e)}")
@@ -126,9 +151,6 @@ class MCPClient:
         print(
             f"query: {query} \ntext: {response.text} \nfunction: {response.function_calls} \ncandidates: {len(response.candidates[0].content.parts)}"
         )
-        # 참고 로그
-        self.print_candidates(response.candidates)
-
         if not response.function_calls:
             return response.text or ""
 
@@ -137,12 +159,12 @@ class MCPClient:
                 name=function_call.name,
                 arguments=function_call.args,
             )
-            pre_query = query + response.text if response.text else ""
+            pre_query = query + response.text if response.text else query
             query_with_tool_answer = "\n\n".join(
                 [pre_query] + [t.text for t in tool_answer.content]
             )
             response = await self.process_query(query_with_tool_answer)
-            return await self.parse_answer(pre_query, response)
+            return await self.parse_answer(query, response)
 
     def print_candidates(self, candidates: list[Candidate]):
         """Print the candidates from the response"""
