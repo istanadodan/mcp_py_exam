@@ -1,0 +1,13 @@
+langgraph>=0.3.25
+langchain-openai>=0.3.12
+langchain-anthropic>=0.3.10
+langchain>=0.3.23
+langchain-community>=0.3.21
+langchain-mcp-adapters>=0.0.7
+tavily-python>=0.5.4
+python-dotenv>=1.0.1
+aiofiles>=24.1.0
+mypy>=1.11.1
+ruff>=0.6.1
+langgraph-cli[inmem]>=0.1.89
+google-generativeai>=0.5.4 # Adjust version as needed

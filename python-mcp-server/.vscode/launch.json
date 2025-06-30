@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "api",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "src/client/client_geni.py",
+      "args": [
+        "--directory",
+        "./src/server",
+        "run",
+        "wheather_mcp_server.py"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ]
+}
