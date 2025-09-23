@@ -78,13 +78,14 @@ async def get_alerts(state: str) -> str:
 
 
 @mcp.tool()
-async def get_forecast(latitude: float, longitude: float) -> str:
+async def get_forecast(latitude: float = 34.0522, longitude: float = -118.2437) -> str:
     """Get weather forecast for a location.
 
     Args:
         latitude: Latitude of the location
         longitude: Longitude of the location
     """
+    return "\n---\n".join("forecasts")
     # First get the forecast grid endpoint
     points_url = f"{NWS_API_BASE}/points/{latitude},{longitude}"
     points_data = await make_nws_request(points_url)
@@ -115,6 +116,6 @@ Forecast: {period['detailedForecast']}
 
 
 if __name__ == "__main__":
-    print("Starting MCP server...")
+    print("Starting MCP server...", file=sys.stderr)
     # Initialize and run the server
     mcp.run(transport="stdio")

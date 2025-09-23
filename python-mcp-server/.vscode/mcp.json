@@ -1,0 +1,12 @@
+{
+	"servers": {
+		"add-mcp": {
+			"type": "stdio",
+			"command": "python.exe",
+			"args": [
+				"d:/works/ai-projects/agentic-mcp-proj/python-mcp-server/src/server/wheather_mcp_server.py"
+			]
+		}
+	},
+	"inputs": []
+}
