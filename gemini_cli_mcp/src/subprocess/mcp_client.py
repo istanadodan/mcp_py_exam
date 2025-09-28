@@ -205,6 +205,7 @@ class GeminiMCPClient:
 
             # 응답 읽기 (타임아웃 포함)
             response_received = False
+            response_line = ""
             for _ in range(50):  # 5초 대기
                 try:
                     response_line = output_queue.get(timeout=0.1)
@@ -281,52 +282,6 @@ class GeminiMCPClient:
             print(f"❌ 서버 연결 실패: {e}")
             return False
 
-    async def call_tool(
-        self, server_name: str, tool_name: str, arguments: Dict[str, Any]
-    ) -> Optional[str]:
-        """
-        MCP 서버의 도구 호출
-
-        Args:
-            server_name: 서버 이름
-            tool_name: 도구 이름
-            arguments: 도구 인수
-
-        Returns:
-            도구 실행 결과
-        """
-        if server_name not in self.servers:
-            return f"서버 '{server_name}'를 찾을 수 없습니다."
-
-        server = self.servers[server_name]
-
-        try:
-            tool_request = {
-                "jsonrpc": "2.0",
-                "id": 3,
-                "method": "tools/call",
-                "params": {"name": tool_name, "arguments": arguments},
-            }
-
-            server.process.stdin.write(json.dumps(tool_request) + "\n")
-            server.process.stdin.flush()
-
-            # 응답 읽기
-            response_line = server.process.stdout.readline()
-            response = json.loads(response_line.strip())
-
-            if "result" in response:
-                content = response["result"].get("content", [])
-                if content and len(content) > 0:
-                    return content[0].get("text", "응답이 없습니다.")
-            elif "error" in response:
-                return f"도구 실행 오류: {response['error']['message']}"
-
-            return "알 수 없는 응답 형식입니다."
-
-        except Exception as e:
-            return f"도구 호출 중 오류 발생: {e}"
-
     def get_available_tools(self) -> List[Dict[str, Any]]:
         """사용 가능한 모든 도구 목록 반환"""
         all_tools = []
@@ -348,7 +303,7 @@ class GeminiMCPClient:
             Gemini 응답
         """
         # 사용 가능한 도구 정보를 프롬프트에 포함
-        tools_info = self.get_available_tools()
+        tools_info = await self.get_available_tools()
         tools_description = "\n".join(
             [
                 f"- {tool['name']} (서버: {tool['server']}): {tool['description']}"

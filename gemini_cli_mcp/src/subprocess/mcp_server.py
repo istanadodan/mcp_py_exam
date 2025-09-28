@@ -141,7 +141,7 @@ class MCPCalculatorServer:
             # line = await reader.readline()
             if not line:
                 break
-            yield line.decode("utf-8")
+            yield line
 
 
 if __name__ == "__main__":
