@@ -1,6 +1,6 @@
 from fastmcp import FastMCP
 
-app = FastMCP("예제 서버")
+app = FastMCP(name="math_mcp")
 
 
 @app.tool(

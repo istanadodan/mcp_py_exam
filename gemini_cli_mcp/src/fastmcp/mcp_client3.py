@@ -7,20 +7,18 @@ import json
 import subprocess
 import sys
 import os
-import platform
-import threading
+import mcp
 import queue
-from typing import Dict, Any, List, Optional, cast
+from typing import Dict, Any, List, Optional, cast, Union
 from contextlib import AsyncExitStack  # for managing mulple async tasks
 from mcp import ClientSession, StdioServerParameters, types as mcptypes
 from mcp.client.stdio import stdio_client
-
-# import google.generativeai as genai 2025년 8월 31일 이후 종료
-
 from google import genai
 from google.genai import types as genai_types
 from google.genai.types import Tool, FunctionDeclaration, GenerateContentConfig
 from dataclasses import dataclass
+
+# import google.generativeai as genai 2025년 8월 31일 이후 종료
 
 
 @dataclass
@@ -72,10 +70,22 @@ class GeminiMCPClient:
         self.session = await self.exit_stack.enter_async_context(
             ClientSession(*stdio_transport)
         )
-        # Send an initialization reqeust to the MCP server.
-        await self.session.initialize()
-
-        return True
+        try:
+            # Send an initialization reqeust to the MCP server.
+            result: mcptypes.InitializeResult = await self.session.initialize()
+            if result is None:
+                print(f"서버에서 유효한 초기화 응답을 주지 않음")
+                return False
+            print(f"✅ 서버 연결 성공: {result.serverInfo}")
+            return True
+        except (
+            OSError,
+            ConnectionError,
+            asyncio.TimeoutError,
+            mcp.McpError,
+        ) as e:
+            print(f"❌ 서버 연결 실패: {e}")
+            return False
 
     async def call_tool(
         self, tool_name: str, arguments: Dict[str, Any]
@@ -196,7 +206,6 @@ TOOL_CALL: {{
 도구: {tool_name}
 결과: {tool_answer}
  
-
 위 결과를 바탕으로 사용자에게 최종 답변을 제공하세요.
 """
 
@@ -204,9 +213,8 @@ TOOL_CALL: {{
                     final_response = self.genai_client.chats.create(
                         model=model
                     ).send_message(message=final_prompt)
-                    if final_response.text is None:
-                        return "최종 응답이 없습니다."
-                    return final_response.text
+
+                    return final_response.text or "최종 응답이 없습니다."
 
                 except json.JSONDecodeError:
                     return response_text
@@ -217,26 +225,50 @@ TOOL_CALL: {{
             return f"오류가 발생했습니다: {e}"
 
 
-async def main():
-    from dotenv import load_dotenv
+async def get_gemini_client() -> Union[None, GeminiMCPClient]:
 
-    load_dotenv()
+    server_script_path = os.getenv("MCP_SERVER_SCRIPT")
+    if server_script_path is None:
+        print("MCP_SERVER_SCRIPT 환경 변수가 설정되지 않았습니다.")
+        sys.exit(1)
 
     api_key = os.getenv("GOOGLE_API_KEY")
     project_id = os.getenv("PROJECT_ID")
     if api_key is None or project_id is None:
         print("GENAI_API_KEY 또는 GENAI_PROJECT_ID 환경 변수가 설정되지 않았습니다.")
-        sys.exit(1)
-    client = None
-    try:
-        client = GeminiMCPClient(api_key=api_key, project_id=project_id)
-        await client.connect_to_server(
-            r"D:\works\ai-projects\agentic-mcp-proj\gemini_cli_mcp\src\fastmcp\mcp_server3.py"
-        )
-        print(f"결과 = {await client.chat("1+3은 얼마인가요?")}")
-    finally:
-        if client:
-            await client.cleanup()
+        return None
+
+    client = GeminiMCPClient(api_key=api_key, project_id=project_id)
+    if not await client.connect_to_server(
+        server_script_path=server_script_path  # MCP 서버 스크립트 경로로 변경
+    ):
+        print("서버에 연결하지 못했습니다.")
+        return None
+
+    return client
+
+
+async def main():
+    from dotenv import load_dotenv
+
+    load_dotenv()
+
+    client = await get_gemini_client()
+    if not client:
+        print("서버에 연결하지 못했습니다.")
+    else:
+
+        while True:
+            try:
+                user_input = input("사용자 입력 (종료하려면 'exit' 입력): ")
+                if user_input.lower() == "exit":
+                    break
+                response = await client.chat(user_input)
+                print(f"Gemini 응답: {response}")
+            except Exception as e:
+                print(f"Gemini에서 오류가 발생했습니다: {e}")
+
+        await client.cleanup()
 
 
 if __name__ == "__main__":
