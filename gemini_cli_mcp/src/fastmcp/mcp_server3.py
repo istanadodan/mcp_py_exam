@@ -17,5 +17,31 @@ def add(x: int, y: int):
     return {"result": x + y}
 
 
+@app.tool(
+    name="list_files",
+    description="파일목록을 출력한다",
+    output_schema={
+        "type": "object",
+        "properties": {
+            "result": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "파일 목록",
+            }
+        },
+        "required": ["result"],
+    },
+)
+def list_files(directory: str = "."):
+    """지정된 디렉토리의 파일 목록을 반환합니다."""
+    import os
+
+    try:
+        files = os.listdir(directory)
+        return {"result": files}
+    except Exception as e:
+        return {"result": [f"Error: {str(e)}"]}
+
+
 if __name__ == "__main__":
     app.run("stdio")
