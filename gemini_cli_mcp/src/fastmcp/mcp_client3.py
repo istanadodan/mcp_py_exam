@@ -116,10 +116,9 @@ class GeminiMCPClient:
 
     async def cleanup(self):
         """모든 서버 프로세스 정리"""
-        # self.stdio.close()
-        # self.write.close()
-        if self.exit_stack:
-            await self.exit_stack.aclose()
+        print("클라이언트 정리 중...")
+        async with self.exit_stack:
+            """"""
 
     async def chat(self, message: str) -> str:
         """
@@ -242,8 +241,7 @@ async def get_gemini_client() -> Union[None, GeminiMCPClient]:
     if not await client.connect_to_server(
         server_script_path=server_script_path  # MCP 서버 스크립트 경로로 변경
     ):
-        print("서버에 연결하지 못했습니다.")
-        return None
+        raise ConnectionError("서버에 연결하지 못했습니다.")
 
     return client
 
